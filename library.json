@@ -1,0 +1,25 @@
+{
+  "name":"ESPAsyncRTSPServer-esphome",
+  "description":"Asynchronous RTSP Server Library for ESP32",
+  "keywords":"rtsp,async,webserver",
+  "authors":
+  {
+    "name": "Charles Crossan",
+    "maintainer": true
+  },
+  "repository":
+  {
+    "type": "git",
+    "url": "https://github.com/crossan007/ESPAsyncRTSPServer-esphome.git"
+  },
+  "version": "0.0.1",
+  "license": "MIT",
+  "frameworks": "arduino",
+  "platforms": ["espressif32"],
+  "dependencies": [
+    {
+      "name": "AsyncTCP-esphome",
+      "platforms": "espressif32"
+    }
+  ]
+}
