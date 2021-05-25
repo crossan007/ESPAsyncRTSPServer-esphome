@@ -16,11 +16,9 @@ AsyncRTSPClient::AsyncRTSPClient(AsyncClient* c, AsyncRTSPServer * server)
   String* tt = &t;
   this->server->writeLog(tt);
 
+  this->_currentRequest = new AsyncRTSPRequest(this);
   //void*, AsyncClient*, void *data, size_t len
   c->onData([this](void* p, AsyncClient* c, void *data, size_t len) {
-    if( this->_currentRequest == NULL) {
-      this->_currentRequest = new AsyncRTSPRequest(this);
-    }
     this->_currentRequest->_onData(data,len);
 
   });
