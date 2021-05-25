@@ -27,8 +27,6 @@ AsyncRTSPClient::AsyncRTSPClient(AsyncClient* c, AsyncRTSPServer * server)
 
 String AsyncRTSPClient::getFriendlyName() {
   String address = this->_tcp_client->remoteIP().toString();
-  address += ":" + this->_tcp_client->remotePort();
-  address += "=>" + this->_tcp_client->localPort();
   return address;
 }
 
