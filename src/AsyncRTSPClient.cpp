@@ -13,8 +13,7 @@ AsyncRTSPClient::AsyncRTSPClient(AsyncClient* c, AsyncRTSPServer * server)
   this->server = server;
   
   String t = "Connected new RTSP Client: " + getFriendlyName();
-  String* tt = &t;
-  this->server->writeLog(tt);
+  this->server->writeLog(t);
 
   this->_currentRequest = new AsyncRTSPRequest(this);
   //void*, AsyncClient*, void *data, size_t len
@@ -43,18 +42,16 @@ void AsyncRTSPClient::pushFrame(uint8_t* data, size_t length) {
 
 AsyncRTSPRequest::AsyncRTSPRequest(AsyncRTSPClient* c)
   : _client(c){
-    String* l = new String("Receiving Data from ");
-    c->server->writeLog(l);
+    c->server->writeLog("Receiving Data from ");
 
 }
 
 void AsyncRTSPRequest::_onData(void *buf, size_t len) {
 
-  char* str = (char*)buf;
+  _client->server->writeLog("Received Data length: ");
+
   _temp.reserve(_temp.length() + len);
   _temp.concat(str);
   String q = "Received Data: " + _temp;
-  String* qq = &q;
-  
-  this->_client->server->writeLog(qq);
+  this->_client->server->writeLog(q);
 }

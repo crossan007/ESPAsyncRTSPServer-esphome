@@ -23,8 +23,7 @@ AsyncRTSPServer::AsyncRTSPServer(uint16_t port):
 
 // TODO: WHY does passing a String cause a crash, but a string poitner just works
 //fighting with this: https://techtutorialsx.com/2017/05/07/esp32-arduino-passing-a-variable-as-argument-of-a-freertos-task/ 
-void AsyncRTSPServer::writeLog(String* log) {
-  
+void AsyncRTSPServer::writeLog(String log) {
 
   if (this->loggerCallback != NULL) {
     this->loggerCallback(log);

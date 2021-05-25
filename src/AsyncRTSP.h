@@ -11,7 +11,7 @@
 
 
 typedef std::function<void (void *)> RTSPConnectHandler;
-typedef std::function<void (String* ) > LogFunction;
+typedef std::function<void (String ) > LogFunction;
 
 // Forward declaration to get around circular dependency, since
 // the client only references a pointer to the server
@@ -44,7 +44,7 @@ class AsyncRTSPServer {
     void onClient(RTSPConnectHandler callback, void* arg);
     void pushFrame(uint8_t* data, size_t length);
     void setLogFunction(LogFunction logger, void* arg);
-    void writeLog(String* log);
+    void writeLog(String log);
 
     //void streamImage();
   protected:
