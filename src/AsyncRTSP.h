@@ -11,22 +11,30 @@
 
 
 typedef std::function<void (void *)> RTSPConnectHandler;
-typedef std::function<void (String *)> LogFunction;
+typedef std::function<void (String* ) > LogFunction;
+
+// Forward declaration to get around circular dependency, since
+// the client only references a pointer to the server
+class AsyncRTSPServer;
+class AsyncRTSPRequest;
+
+// class declarations
 
 class AsyncRTSPClient {
+  friend class AsyncRTSPRequest;
   public:
-    AsyncRTSPClient(AsyncClient* client);
+    AsyncRTSPClient(AsyncClient* client, AsyncRTSPServer * server);
     ~AsyncRTSPClient();
     void pushFrame(uint8_t* data, size_t length);
-
+    String getFriendlyName();
 
   private:
-    AsyncClient * client;
-  
+    AsyncClient * _tcp_client;
+    AsyncRTSPServer * server;
+    AsyncRTSPRequest * _currentRequest;
 };
 
 class AsyncRTSPServer {
-
   public:
     AsyncRTSPServer(uint16_t port);
     ~AsyncRTSPServer();
@@ -36,6 +44,7 @@ class AsyncRTSPServer {
     void onClient(RTSPConnectHandler callback, void* arg);
     void pushFrame(uint8_t* data, size_t length);
     void setLogFunction(LogFunction logger, void* arg);
+    void writeLog(String* log);
 
     //void streamImage();
   protected:
@@ -47,8 +56,19 @@ class AsyncRTSPServer {
     AsyncRTSPClient* client;
     RTSPConnectHandler connectCallback;
     LogFunction loggerCallback;
-    void writeLog(String* log);
+    
 
 };
 
+class AsyncRTSPRequest { 
+  friend class AsyncRTSPServer;
+  public:
+    AsyncRTSPRequest(AsyncRTSPClient*);
+    ~AsyncRTSPRequest();
+    void _onData(void *buf, size_t len);
+  private:
+    AsyncRTSPClient* _client;
+    String _temp;
+
+};
 

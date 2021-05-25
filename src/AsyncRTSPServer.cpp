@@ -4,27 +4,32 @@
  * 
  */
 
-#include <AsyncRTSPServer.h>
+#include <AsyncRTSP.h>
 
 AsyncRTSPServer::AsyncRTSPServer(uint16_t port): 
   _server(port) {
 
-  _server.onClient([](void *s, AsyncClient* c){
+  _server.onClient([this](void *s, AsyncClient* c){
   
    AsyncRTSPServer* rtps = (AsyncRTSPServer*)s;
     
-    rtps->client = new AsyncRTSPClient(c);
+    rtps->client = new AsyncRTSPClient(c,this);
     rtps->connectCallback(rtps->that);
-    rtps->writeLog(new String("hey"));
 
   }, this);
 
+  this->loggerCallback = NULL;
 }
 
+// TODO: WHY does passing a String cause a crash, but a string poitner just works
+//fighting with this: https://techtutorialsx.com/2017/05/07/esp32-arduino-passing-a-variable-as-argument-of-a-freertos-task/ 
 void AsyncRTSPServer::writeLog(String* log) {
+  
+
   if (this->loggerCallback != NULL) {
     this->loggerCallback(log);
   }
+  
 }
 
 void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
@@ -48,16 +53,4 @@ void AsyncRTSPServer::setLogFunction(LogFunction callback, void* that) {
 void AsyncRTSPServer::begin(){
   _server.setNoDelay(true);
   _server.begin();
-}
-
-AsyncRTSPClient::AsyncRTSPClient(AsyncClient* c)
-{
-  this->client = c;
-} 
-
-void AsyncRTSPClient::pushFrame(uint8_t* data, size_t length) {
-  if (this->client != NULL) {
-    this->client->write((char*)data,length);
-  }
-
 }
