@@ -40,7 +40,10 @@ void AsyncRTSPClient::pushFrame(uint8_t* data, size_t length) {
 
 AsyncRTSPRequest::AsyncRTSPRequest(AsyncRTSPClient* c)
   : _client(c){
-    c->server->writeLog("Receiving Data from ");
+
+    _temp = String();
+
+    c->server->writeLog("Receiving Data from " + c->getFriendlyName());
 
 }
 
@@ -48,8 +51,15 @@ void AsyncRTSPRequest::_onData(void *buf, size_t len) {
 
   _client->server->writeLog("Received Data length: ");
 
+  char *str = (char*)buf;
+  // super janky way to pass a null-terminated char array to the string
+  // and then just add the last char to the end of the string
+  
+  char last = str[len-1];
+  str[len-1] = 0;
   _temp.reserve(_temp.length() + len);
   _temp.concat(str);
+  _temp.concat(last);
   String q = "Received Data: " + _temp;
   this->_client->server->writeLog(q);
 }
