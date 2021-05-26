@@ -90,13 +90,57 @@ class AsyncRTSPRequest {
 
 class AsyncRTSPResponse { 
   public:
-    AsyncRTSPResponse(AsyncClient* c);
+    AsyncRTSPResponse(AsyncClient* c, AsyncRTSPRequest* r);
     ~AsyncRTSPResponse();
-    void Send(String data);
+    int Status;
+    void Send();
+    String Body;
 
   private:
     AsyncClient* _tcpClient;
+    AsyncRTSPRequest* _request;
 
 };
 
 
+/**
+ * Handles modifying/stringifying the key-value attributes for the RTSP 
+ * stream as defined at https://datatracker.ietf.org/doc/html/rfc2326#appendix-C.1.1
+ * and full session description here: https://datatracker.ietf.org/doc/html/rfc2327#section-6
+ * used for responding to the DESCRIBE request 
+ * https://datatracker.ietf.org/doc/html/rfc2326#section-10.2
+ */
+class RTSPMediaLevelAttributes {
+
+/*
+Session description
+        v=  (protocol version)
+        o=  (owner/creator and session identifier).
+        s=  (session name)
+        i=* (session information)
+        u=* (URI of description)
+        e=* (email address)
+        p=* (phone number)
+        c=* (connection information - not required if included in all media)
+        b=* (bandwidth information)
+        One or more time descriptions (see below)
+        z=* (time zone adjustments)
+        k=* (encryption key)
+        a=* (zero or more session attribute lines)
+        Zero or more media descriptions (see below)
+
+Time description
+        t=  (time the session is active)
+        r=* (zero or more repeat times)
+
+Media description
+        m=  (media name and transport address)
+        i=* (media title)
+        c=* (connection information - optional if included at session-level)
+        b=* (bandwidth information)
+        k=* (encryption key)
+        a=* (zero or more media attribute lines)
+*/
+  public:
+    static String toString();
+};
