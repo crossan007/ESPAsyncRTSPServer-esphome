@@ -33,7 +33,7 @@ void AsyncRTSPServer::writeLog(String log) {
 
 void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
   if (this->client != NULL) {
-    this->client->pushFrame(data,length);
+    //this->client->pushFrame(data,length);
   }
 }
 

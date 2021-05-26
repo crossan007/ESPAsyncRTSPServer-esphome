@@ -20,6 +20,7 @@ typedef std::function<void (String ) > LogFunction;
 // the client only references a pointer to the server
 class AsyncRTSPServer;
 class AsyncRTSPRequest;
+class AsyncRTSPResponse;
 
 // class declarations
 
@@ -32,9 +33,11 @@ class AsyncRTSPClient {
     String getFriendlyName();
 
   private:
+    void handleRTSPRequest(AsyncRTSPRequest*, AsyncRTSPResponse*);
     AsyncClient * _tcp_client;
     AsyncRTSPServer * server;
-    AsyncRTSPRequest * _currentRequest;
+    boolean _isCurrentlyStreaming;
+    String _temp;
 };
 
 class AsyncRTSPServer {
@@ -59,19 +62,41 @@ class AsyncRTSPServer {
     AsyncRTSPClient* client;
     RTSPConnectHandler connectCallback;
     LogFunction loggerCallback;
+   
     
 
 };
 
+
+/**
+ * Implementation of https://datatracker.ietf.org/doc/html/rfc2326#section-6
+ */
 class AsyncRTSPRequest { 
-  friend class AsyncRTSPServer;
   public:
-    AsyncRTSPRequest(AsyncRTSPClient*);
+    AsyncRTSPRequest(String rawRequest);
     ~AsyncRTSPRequest();
-    void _onData(void *buf, size_t len);
+    String Method;
+    String RequestURI;
+    String RTSPVersion;
+    String Body;
+    String Seq;
+    String toString();
+
+
   private:
-    AsyncRTSPClient* _client;
-    String _temp;
+    
 
 };
+
+class AsyncRTSPResponse { 
+  public:
+    AsyncRTSPResponse(AsyncClient* c);
+    ~AsyncRTSPResponse();
+    void Send(String data);
+
+  private:
+    AsyncClient* _tcpClient;
+
+};
+
 
