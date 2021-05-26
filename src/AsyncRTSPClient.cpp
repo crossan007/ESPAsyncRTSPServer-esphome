@@ -60,6 +60,11 @@ void AsyncRTSPRequest::_onData(void *buf, size_t len) {
   _temp.reserve(_temp.length() + len);
   _temp.concat(str);
   _temp.concat(last);
-  String q = "Received Data: " + _temp;
+  String q = "Received Data: '" + _temp +"'";
   this->_client->server->writeLog(q);
+
+  // TODO: this may be naieve to assume a complete RTSP request
+  if (_temp.substring(_temp.length()-2, _temp.length()-1) == "\r" ) {
+    this->_client->server->writeLog("We got a full command!");
+  }
 }
