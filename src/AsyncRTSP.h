@@ -99,6 +99,7 @@ class AsyncRTSPResponse {
   private:
     AsyncClient* _tcpClient;
     AsyncRTSPRequest* _request;
+    char * DateHeader();
 
 };
 

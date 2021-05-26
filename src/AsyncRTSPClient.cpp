@@ -122,12 +122,21 @@ void AsyncRTSPResponse::Send(){
   if (this->Status == 200) {
     sendBody += "RTSP/1.0 200 OK\r\nCSeq: " + _request->Seq + "\r\n";
   }
+  sendBody += this->DateHeader();
+  sendBody += "\r\n";
   if (this->Body.length() > 0) {
     sendBody += this->Body;
   }
   sendBody += "\r\n\r\n";
   this->_tcpClient->write(sendBody.c_str());
   this->_tcpClient->send();
+}
+
+char * AsyncRTSPResponse::DateHeader() {
+  static char buf[200];
+  time_t tt = time(NULL);
+  strftime(buf, sizeof buf, "Date: %a, %b %d %Y %H:%M:%S GMT\r\n", gmtime(&tt));
+  return buf;
 }
 
 String RTSPMediaLevelAttributes::toString() {
@@ -139,3 +148,4 @@ String RTSPMediaLevelAttributes::toString() {
         // "a=x-dimensions: 640,480\r\n"
         "c=IN IP4 0.0.0.0\r\n";
 }
+
