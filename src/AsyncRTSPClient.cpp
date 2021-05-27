@@ -6,6 +6,8 @@
 
 #include <AsyncRTSP.h>
 
+#define getRandom() random(65536)
+
 /**
  * Sets up a new client connection / session
  * 
@@ -18,6 +20,8 @@ AsyncRTSPClient::AsyncRTSPClient(AsyncClient* c, AsyncRTSPServer * server)
   this->_tcp_client = c;
   this->server = server;
   this->_isCurrentlyStreaming = false;
+  this->RtspSessionID = getRandom();
+  this->RtspSessionID |= 0x80000000;
   
   String t = "Connected new RTSP Client: " + getFriendlyName();
   this->server->writeLog(t);
@@ -33,8 +37,6 @@ AsyncRTSPClient::AsyncRTSPClient(AsyncClient* c, AsyncRTSPServer * server)
     this->_temp.reserve(_temp.length() + len);
     _temp.concat(str);
     _temp.concat(last);
-    String q = "Received Data: '" + _temp +"'";
-    this->server->writeLog(q);
 
     // TODO: this may be naieve to assume a complete RTSP request
     int endS = _temp.indexOf("\r\n\r\n");
@@ -56,11 +58,10 @@ AsyncRTSPClient::AsyncRTSPClient(AsyncClient* c, AsyncRTSPServer * server)
 
 
 void AsyncRTSPClient::handleRTSPRequest(AsyncRTSPRequest* req, AsyncRTSPResponse* res){
-  this->server->writeLog(req->toString());
 
   if(req->Method =="OPTIONS") {
     res->Status = 200;
-    res->Body = "Public: DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE";
+    res->Headers = "Public: DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE\r\n";
     res->Send();
     
   }
@@ -69,11 +70,29 @@ void AsyncRTSPClient::handleRTSPRequest(AsyncRTSPRequest* req, AsyncRTSPResponse
     res->Body = RTSPMediaLevelAttributes::toString();
     res->Send();
   }
+  else if(req->Method=="SETUP") {
+    String transport = req->GetHeaderValue("Transport");
+    int client_port = transport.indexOf("client_port=") + 12;
+    int dash = transport.indexOf("-",client_port);
+    int end = transport.indexOf(";",dash);
+    this->_RTPPort = transport.substring(client_port, dash);
+    this->_RTCPPort = transport.substring(dash+1, end);
+    this->server->writeLog("RTP Port: " + this->_RTPPort+"; RTCP Port: " + this->_RTCPPort);
+    res->Status = 200;
+    char sess[20];
+    sprintf(sess,"%u",this->RtspSessionID);
+
+    res->Headers = "Transport: RTP/AVP/UDP;unicast;destination=" +
+      this->_tcp_client->remoteIP().toString() +
+      ";client_port=" + this->_RTPPort + "-" + this->_RTCPPort + ";server_port=60974-0;mode=play\r\n" +
+      "Session: " + String(sess);
+    res->Send();
+  }
   else {
-    this->server->writeLog("Could not handle " + req->Method +  "request");
+    this->server->writeLog("Could not handle " + req->Method +  " request: \n\n" + req->rawRequest);
     return;
   }
-  this->server->writeLog("Handled " + req->Method +  "request");
+  this->server->writeLog("Handled " + req->Method +  " request from " + this->getFriendlyName() + ". seq: " + req->GetHeaderValue("CSeq"));
 }
 
 String AsyncRTSPClient::getFriendlyName() {
@@ -90,6 +109,7 @@ void AsyncRTSPClient::pushFrame(uint8_t* data, size_t length) {
 
 
 AsyncRTSPRequest::AsyncRTSPRequest(String rawRequest) {
+  this->rawRequest = rawRequest;
   int methodEnd = rawRequest.indexOf(" ");
   this->Method = rawRequest.substring(0,methodEnd);
 
@@ -99,16 +119,21 @@ AsyncRTSPRequest::AsyncRTSPRequest(String rawRequest) {
   int requestLineEnd = rawRequest.indexOf("\r\n",uriEnd+1);
   this->RTSPVersion = rawRequest.substring(uriEnd+1,requestLineEnd);
 
-  int seqStart = rawRequest.indexOf("CSeq:");
-  int seqEnd = rawRequest.indexOf("\n",seqStart);
-  this->Seq = rawRequest.substring(seqStart+6,seqEnd-1);
+  this->Headers = rawRequest.substring(requestLineEnd+2,rawRequest.length()-2);
 }
  
 String AsyncRTSPRequest::toString() {
   return "Method: " + this->Method +"\n"
     + "URI: " + this->RequestURI + "\n"
     + "Version:" + this->RTSPVersion + "\n"
-    + "Sequence: " + this->Seq;
+    + "Sequence: " + this->GetHeaderValue("CSeq");
+}
+
+String AsyncRTSPRequest::GetHeaderValue(String headerName) {
+  int headerLineStart = this->Headers.indexOf(headerName);
+  int headerNameEnd = this->Headers.indexOf(":",headerLineStart);
+  int headerLineEnd = this->Headers.indexOf("\r\n",headerLineStart);
+  return this->Headers.substring(headerNameEnd+1,headerLineEnd);
 }
 
 AsyncRTSPResponse::AsyncRTSPResponse(AsyncClient* c, AsyncRTSPRequest* r)
@@ -120,16 +145,24 @@ AsyncRTSPResponse::AsyncRTSPResponse(AsyncClient* c, AsyncRTSPRequest* r)
 void AsyncRTSPResponse::Send(){
   String sendBody = String();
   if (this->Status == 200) {
-    sendBody += "RTSP/1.0 200 OK\r\nCSeq: " + _request->Seq + "\r\n";
+    sendBody += "RTSP/1.0 200 OK\r\nCSeq: " + _request->GetHeaderValue("CSeq") + "\r\n";
   }
-  sendBody += this->DateHeader();
-  sendBody += "\r\n";
+  sendBody += this->Headers;
   if (this->Body.length() > 0) {
+    sendBody += this->DateHeader();
+    sendBody += this->ContentLengthHeader();
+    sendBody += "\r\n";
     sendBody += this->Body;
   }
-  sendBody += "\r\n\r\n";
+  sendBody += "\r\n";
   this->_tcpClient->write(sendBody.c_str());
   this->_tcpClient->send();
+}
+
+String AsyncRTSPResponse::ContentLengthHeader() {
+  char t[10];
+  itoa(this->Body.length()+2,t,10);
+  return String("Content-Length: ") + t + "\r\n";
 }
 
 char * AsyncRTSPResponse::DateHeader() {
@@ -146,6 +179,6 @@ String RTSPMediaLevelAttributes::toString() {
         "t=0 0\r\n"
         "m=video 0 RTP/AVP 26\r\n"
         // "a=x-dimensions: 640,480\r\n"
-        "c=IN IP4 0.0.0.0\r\n";
+        "c=IN IP4 0.0.0.0";
 }
 

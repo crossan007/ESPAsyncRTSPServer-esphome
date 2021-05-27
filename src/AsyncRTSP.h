@@ -38,6 +38,9 @@ class AsyncRTSPClient {
     AsyncRTSPServer * server;
     boolean _isCurrentlyStreaming;
     String _temp;
+    String _RTPPort;
+    String _RTCPPort;
+    uint RtspSessionID;
 };
 
 class AsyncRTSPServer {
@@ -67,7 +70,6 @@ class AsyncRTSPServer {
 
 };
 
-
 /**
  * Implementation of https://datatracker.ietf.org/doc/html/rfc2326#section-6
  */
@@ -75,16 +77,18 @@ class AsyncRTSPRequest {
   public:
     AsyncRTSPRequest(String rawRequest);
     ~AsyncRTSPRequest();
+    String rawRequest;
     String Method;
     String RequestURI;
     String RTSPVersion;
     String Body;
-    String Seq;
+    String Headers;
     String toString();
+
+    String GetHeaderValue(String Header);
 
 
   private:
-    
 
 };
 
@@ -95,11 +99,13 @@ class AsyncRTSPResponse {
     int Status;
     void Send();
     String Body;
+    String Headers;
 
   private:
     AsyncClient* _tcpClient;
     AsyncRTSPRequest* _request;
     char * DateHeader();
+    String ContentLengthHeader();
 
 };
 
