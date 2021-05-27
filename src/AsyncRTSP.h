@@ -54,6 +54,8 @@ class AsyncRTSPServer {
     void pushFrame(uint8_t* data, size_t length);
     void setLogFunction(LogFunction logger, void* arg);
     void writeLog(String log);
+    int GetRTSPServerPort();
+    int GetRTCPServerPort();
 
     //void streamImage();
   protected:
@@ -65,6 +67,8 @@ class AsyncRTSPServer {
     AsyncRTSPClient* client;
     RTSPConnectHandler connectCallback;
     LogFunction loggerCallback;
+    int RtpServerPort;
+    int RtcpServerPort;
    
     
 

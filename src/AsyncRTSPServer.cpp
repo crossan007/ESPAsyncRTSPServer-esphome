@@ -47,6 +47,16 @@ void AsyncRTSPServer::setLogFunction(LogFunction callback, void* that) {
   this->thatlog = that;
 }
 
+int AsyncRTSPServer::GetRTSPServerPort()
+{
+  return this->RtpServerPort;
+}
+
+int AsyncRTSPServer::GetRTCPServerPort()
+{
+  return this->RtcpServerPort;
+}
+
 
 
 void AsyncRTSPServer::begin(){

@@ -79,13 +79,24 @@ void AsyncRTSPClient::handleRTSPRequest(AsyncRTSPRequest* req, AsyncRTSPResponse
     this->_RTCPPort = transport.substring(dash+1, end);
     this->server->writeLog("RTP Port: " + this->_RTPPort+"; RTCP Port: " + this->_RTCPPort);
     res->Status = 200;
+
+    char transportResponse[255];
+    sprintf(
+      transportResponse,
+      "Transport: RTP/AVP/UDP;unicast;destination=%s;client_port=%s-%s;server_port=%u-%u;mode=play\r\n",
+      this->_tcp_client->remoteIP().toString().c_str(),
+      this->_RTPPort.c_str(),
+      this->_RTCPPort.c_str(),
+      this->server->GetRTSPServerPort(),
+      this->server->GetRTCPServerPort()
+      );
+
     char sess[20];
     sprintf(sess,"%u",this->RtspSessionID);
 
-    res->Headers = "Transport: RTP/AVP/UDP;unicast;destination=" +
-      this->_tcp_client->remoteIP().toString() +
-      ";client_port=" + this->_RTPPort + "-" + this->_RTCPPort + ";server_port=60974-0;mode=play\r\n" +
-      "Session: " + String(sess);
+
+
+    res->Headers = String(transportResponse) + "Session: " + String(sess);
     res->Send();
   }
   else {
