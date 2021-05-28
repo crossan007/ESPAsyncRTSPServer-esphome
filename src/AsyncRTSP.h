@@ -1,10 +1,12 @@
 /**
  * This library is an adaptation of https://github.com/geeksville/Micro-RTSP
  * suited for use with the AsyncTCP library https://github.com/me-no-dev/AsyncTCP
+ * Tutorial: https://www.medialan.de/usecase0001.html
  * 
  * RTSP Resources
  *   RFC: https://datatracker.ietf.org/doc/html/rfc2326#page-33
  *   Wiki: https://en.wikipedia.org/wiki/Real_Time_Streaming_Protocol
+ *   RTP/RTPC Packet Structure: https://datatracker.ietf.org/doc/html/rfc3550
  */
 
 #pragma once
