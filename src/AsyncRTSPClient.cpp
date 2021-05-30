@@ -165,6 +165,9 @@ void AsyncRTSPResponse::Send(){
     sendBody += "\r\n";
     sendBody += this->Body;
   }
+  else {
+    sendBody += "\r\n";
+  }
   sendBody += "\r\n";
   this->_tcpClient->write(sendBody.c_str());
   this->_tcpClient->send();
