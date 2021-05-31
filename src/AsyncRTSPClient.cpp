@@ -6,6 +6,7 @@
 
 #include <AsyncRTSP.h>
 
+
 #define getRandom() random(65536)
 
 /**
@@ -17,6 +18,7 @@
  */
 AsyncRTSPClient::AsyncRTSPClient(AsyncClient* c, AsyncRTSPServer * server)
 {
+  udp.begin(8830);
   this->_tcp_client = c;
   this->server = server;
   this->_isCurrentlyStreaming = false;
@@ -76,6 +78,7 @@ void AsyncRTSPClient::handleRTSPRequest(AsyncRTSPRequest* req, AsyncRTSPResponse
     int dash = transport.indexOf("-",client_port);
     int end = transport.indexOf(";",dash);
     this->_RTPPort = transport.substring(client_port, dash);
+    this->_RTPPortInt = this->_RTPPort.toInt();
     this->_RTCPPort = transport.substring(dash+1, end);
     this->server->writeLog("RTP Port: " + this->_RTPPort+"; RTCP Port: " + this->_RTCPPort);
     res->Status = 200;
@@ -99,6 +102,18 @@ void AsyncRTSPClient::handleRTSPRequest(AsyncRTSPRequest* req, AsyncRTSPResponse
     res->Headers = String(transportResponse) + "Session: " + String(sess);
     res->Send();
   }
+  else if(req->Method=="PLAY") {
+    this->_isCurrentlyStreaming = true;
+    res->Status = 200;
+    res->Send();
+  }
+  else if(req->Method=="TEARDOWN") {
+    this->_isCurrentlyStreaming = false;
+    res->Status = 200;
+    res->Send();
+  }
+
+  
   else {
     this->server->writeLog("Could not handle " + req->Method +  " request: \n\n" + req->rawRequest);
     return;
@@ -111,11 +126,17 @@ String AsyncRTSPClient::getFriendlyName() {
   return address;
 }
 
-void AsyncRTSPClient::pushFrame(uint8_t* data, size_t length) {
-  if (this->_tcp_client != NULL) {
-    //this->_tcp_client->write((char*)data,length);
-  }
+void AsyncRTSPClient::PushRTPBuffer(const char* RTPBuffer, size_t length) {
+  udp.beginPacket(this->_tcp_client->remoteIP(),this->_RTPPortInt);
 
+  int i = 0;
+  while (i < length) udp.write((uint8_t)RTPBuffer[i++]);
+  udp.endPacket();
+  //this->server->writeLog("Wrote UDP Packet to " + String(this->_RTPPortInt));
+}
+
+boolean AsyncRTSPClient::getIsCurrentlyStreaming() {
+  return this->_isCurrentlyStreaming;
 }
 
 

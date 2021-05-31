@@ -12,17 +12,30 @@
 #pragma once
 #include "Arduino.h"
 #include <AsyncTCP.h>
+#include <WiFiUdp.h>
 #include <stdio.h>
 
 
 typedef std::function<void (void *)> RTSPConnectHandler;
 typedef std::function<void (String ) > LogFunction;
 
+struct dimensions {
+  uint width;
+  uint height;
+};
+
 // Forward declaration to get around circular dependency, since
 // the client only references a pointer to the server
 class AsyncRTSPServer;
 class AsyncRTSPRequest;
 class AsyncRTSPResponse;
+
+
+struct RTPBuffferPreparationResult {
+  int offset;
+  int bufferSize;
+  bool isLastFragment;
+};
 
 // class declarations
 
@@ -31,8 +44,10 @@ class AsyncRTSPClient {
   public:
     AsyncRTSPClient(AsyncClient* client, AsyncRTSPServer * server);
     ~AsyncRTSPClient();
-    void pushFrame(uint8_t* data, size_t length);
+    void PushRTPBuffer(const char* RTPBuffer, size_t length);
     String getFriendlyName();
+    boolean getIsCurrentlyStreaming();
+    WiFiUDP udp;
 
   private:
     void handleRTSPRequest(AsyncRTSPRequest*, AsyncRTSPResponse*);
@@ -40,14 +55,19 @@ class AsyncRTSPClient {
     AsyncRTSPServer * server;
     boolean _isCurrentlyStreaming;
     String _temp;
+    int _RTPPortInt;
     String _RTPPort;
     String _RTCPPort;
+
     uint RtspSessionID;
+  
 };
+
+
 
 class AsyncRTSPServer {
   public:
-    AsyncRTSPServer(uint16_t port);
+    AsyncRTSPServer(uint16_t port, dimensions dim);
     ~AsyncRTSPServer();
 
     void begin();
@@ -58,12 +78,14 @@ class AsyncRTSPServer {
     void writeLog(String log);
     int GetRTSPServerPort();
     int GetRTCPServerPort();
+    boolean hasClients();
 
     //void streamImage();
   protected:
     AsyncServer _server;
     void* that;
     void* thatlog;
+    
 
   private:
     AsyncRTSPClient* client;
@@ -71,6 +93,17 @@ class AsyncRTSPServer {
     LogFunction loggerCallback;
     int RtpServerPort;
     int RtcpServerPort;
+    char* RTPBuffer; // Note: we assume single threaded, this large buf we keep off of the tiny stack
+    void PrepareRTPBufferForClients(
+      char* RTPBuffer, 
+      uint8_t* data, 
+      int length, 
+      RTPBuffferPreparationResult* bpr, 
+      unsigned const char * quant0tbl, 
+      unsigned const char * quant1tbl);
+    u_short m_SequenceNumber;
+    uint32_t m_Timestamp;
+    dimensions _dim;
    
     
 
