@@ -5,6 +5,7 @@
  */
 
 #include <AsyncRTSP.h>
+#include "JPEGHelpers.cpp"
 
 AsyncRTSPServer::AsyncRTSPServer(uint16_t port, dimensions dim): 
   _server(port),
