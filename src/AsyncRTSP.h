@@ -14,7 +14,7 @@
 #include <AsyncTCP.h>
 #include <WiFiUdp.h>
 #include <stdio.h>
-
+#include "JPEGHelpers.h"
 
 typedef std::function<void (void *)> RTSPConnectHandler;
 typedef std::function<void (String ) > LogFunction;

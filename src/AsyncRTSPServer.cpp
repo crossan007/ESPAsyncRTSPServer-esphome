@@ -50,6 +50,15 @@ void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
     // for now, just do one.
 
     struct RTPBuffferPreparationResult bpr = {0,0,false};
+
+    unsigned char* quant0tbl;
+    unsigned char* quant1tbl;
+
+    if (! decodeJPEGfile(data, length, quant0tbl, quant1tbl) ) {
+      this->loggerCallback("Cannot decode JPEG Data");
+      return;
+    }
+
     do {
 
       PrepareRTPBufferForClients(
