@@ -1,6 +1,7 @@
 /**
  * This library is an adaptation of https://github.com/geeksville/Micro-RTSP
  * suited for use with the AsyncTCP library https://github.com/me-no-dev/AsyncTCP
+ * JPEG over RTP packet format: https://datatracker.ietf.org/doc/html/rfc2435
  * 
  */
 
@@ -24,10 +25,10 @@ AsyncRTSPServer::AsyncRTSPServer(uint16_t port, dimensions dim):
   }, this);
 
   this->loggerCallback = NULL;
+
+  this->start_Timestamp = millis();
 }
 
-// TODO: WHY does passing a String cause a crash, but a string poitner just works
-//fighting with this: https://techtutorialsx.com/2017/05/07/esp32-arduino-passing-a-variable-as-argument-of-a-freertos-task/ 
 void AsyncRTSPServer::writeLog(String log) {
 
   if (this->loggerCallback != NULL) {
@@ -43,23 +44,36 @@ boolean AsyncRTSPServer::hasClients(){
 
 void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
 
-  unsigned const char * quant0tbl;
+  uint32_t units = 90000; // Hz per RFC 2435
+  this->m_Timestamp = (units * -(millis() - this->start_Timestamp)) / 1000;
+
+  //printf("image  data\n");
+  for( int i =0; i<length+1; i++){
+    //printf("%x", *(data+i));
+  }
+  //printf("\nend image data");
+
+  printf("JPEG first byte: %x, last two bytes (starting at %p) %x%x\n", *data, (data+length-2), *(data+length-2),*(data+length-1));
 
   if (this->client != NULL && this->client->getIsCurrentlyStreaming()) {
     // TODO: When we support multiple clients, this will end up being a nested loop
     // where the buffer is prepared once, and sent out to each client individually
     // for now, just do one.
 
+    
+
     struct RTPBuffferPreparationResult bpr = {0,0,false};
 
     unsigned char* quant0tbl;
     unsigned char* quant1tbl;
 
-    if (! decodeJPEGfile(data, length, quant0tbl, quant1tbl) ) {
+    if (! decodeJPEGfile(&data, &length, &quant0tbl, &quant1tbl) ) {
       this->loggerCallback("Cannot decode JPEG Data");
       return;
     }
 
+    // at this point, "data" points to the addres of the scan frames
+    // 
     do {
 
       PrepareRTPBufferForClients(
@@ -187,7 +201,7 @@ void AsyncRTSPServer::PrepareRTPBufferForClients (
         memcpy(RtpBuf + headerLen, quant1tbl, numQantBytes);
         headerLen += numQantBytes;
     }
-    // printf("Sending timestamp %d, seq %d, fragoff %d, fraglen %d, length %d\n", m_Timestamp, m_SequenceNumber, bpr->offset, fragmentLen, length);
+    printf("Sending timestamp %d, seq %d, fragoff %d, fraglen %d, length %d\n", m_Timestamp, m_SequenceNumber, bpr->offset, fragmentLen, length);
 
     // append the JPEG scan data to the RTP buffer
     memcpy(RtpBuf + headerLen,data + bpr->offset, fragmentLen);
