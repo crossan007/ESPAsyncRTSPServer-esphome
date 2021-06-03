@@ -45,7 +45,7 @@ boolean AsyncRTSPServer::hasClients(){
 void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
 
   uint32_t units = 90000; // Hz per RFC 2435
-  this->m_Timestamp = (units * -(millis() - this->start_Timestamp)) / 1000;
+  this->m_Timestamp += (units * -(millis() - this->start_Timestamp)) / 1000;
 
   //printf("image  data\n");
   for( int i =0; i<length+1; i++){
