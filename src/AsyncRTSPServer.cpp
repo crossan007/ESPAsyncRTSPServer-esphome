@@ -44,23 +44,15 @@ boolean AsyncRTSPServer::hasClients(){
 
 void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
 
+
+
   uint32_t units = 90000; // Hz per RFC 2435
   this->m_Timestamp += (units * -(millis() - this->start_Timestamp)) / 1000;
-
-  //printf("image  data\n");
-  for( int i =0; i<length+1; i++){
-    //printf("%x", *(data+i));
-  }
-  //printf("\nend image data");
-
-  printf("JPEG first byte: %x, last two bytes (starting at %p) %x%x\n", *data, (data+length-2), *(data+length-2),*(data+length-1));
 
   if (this->client != NULL && this->client->getIsCurrentlyStreaming()) {
     // TODO: When we support multiple clients, this will end up being a nested loop
     // where the buffer is prepared once, and sent out to each client individually
     // for now, just do one.
-
-    
 
     struct RTPBuffferPreparationResult bpr = {0,0,false};
 
@@ -73,8 +65,8 @@ void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
     }
 
     // at this point, "data" points to the addres of the scan frames
-    // 
     do {
+
 
       PrepareRTPBufferForClients(
         this->RTPBuffer,
@@ -82,23 +74,10 @@ void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
         length,
         &bpr,
         quant0tbl,
-        quant0tbl);
-
-        /*
-        IPADDRESS otherip;
-        IPPORT otherport;
-        socketpeeraddr(m_Client, &otherip, &otherport);
-
-        // RTP marker bit must be set on last fragment
-        if (m_TCPTransport) // RTP over RTSP - we send the buffer + 4 byte additional header
-            socketsend(m_Client,RtpBuf,RtpPacketSize + 4);
-        else                // UDP - we send just the buffer by skipping the 4 byte RTP over RTSP header
-            udpsocketsend(m_RtpSocket,&RtpBuf[4],RtpPacketSize, otherip, m_RtpClientPort);
-        */
+        quant1tbl);
       this->client->PushRTPBuffer(this->RTPBuffer, bpr.bufferSize);
-      //this->writeLog("Wrote buffer offset: " + String(bpr.offset) + " of source data len: " + String(bpr.bufferSize));
     } while(!bpr.isLastFragment);
-    this->loggerCallback("RTSP server pushed camera frame");     
+    this->loggerCallback("RTSP server pushed camera frame");   
   }
 }
 
@@ -136,17 +115,17 @@ void AsyncRTSPServer::PrepareRTPBufferForClients (
 
     #define MAX_FRAGMENT_SIZE 1100 // FIXME, pick more carefully
     int fragmentLen = MAX_FRAGMENT_SIZE;
-    if(fragmentLen + bpr->offset > length) // Shrink last fragment if needed
-        fragmentLen = length - bpr->offset;
-
-    bpr->isLastFragment = (bpr->offset + fragmentLen) == length;
+    if(fragmentLen + bpr->offset >= length) {// Shrink last fragment if needed
+        fragmentLen = length - bpr->offset - 2; // the JPEG end marker (FFD9) will be in this fragment.  drop it from the end
+        bpr->isLastFragment = true;
+    }
 
     // Do we have custom quant tables? If so include them per RFC
 
     bool includeQuantTbl = quant0tbl && quant1tbl && bpr->offset == 0;
     uint8_t q = includeQuantTbl ? 128 : 0x5e;
 
-    bpr->bufferSize = fragmentLen + KRtpHeaderSize + KJpegHeaderSize + (includeQuantTbl ? (4 + 64 * 2) : 0);
+    bpr->bufferSize = 4 + fragmentLen + KRtpHeaderSize + KJpegHeaderSize + (includeQuantTbl ? (4 + 64 * 2) : 0);
 
     memset(RtpBuf,0x00,sizeof(RtpBuf));
     // Prepare the first 4 byte of the packet. This is the Rtp over Rtsp header in case of TCP based transport
@@ -185,7 +164,6 @@ void AsyncRTSPServer::PrepareRTPBufferForClients (
 
     int headerLen = 24; // Inlcuding jpeg header but not qant table header
     if(includeQuantTbl) { // we need a quant header - but only in first packet of the frame
-        //printf("inserting quanttbl\n");
         RtpBuf[24] = 0; // MBZ
         RtpBuf[25] = 0; // 8 bit precision
         RtpBuf[26] = 0; // MSB of lentgh
@@ -201,10 +179,9 @@ void AsyncRTSPServer::PrepareRTPBufferForClients (
         memcpy(RtpBuf + headerLen, quant1tbl, numQantBytes);
         headerLen += numQantBytes;
     }
-    printf("Sending timestamp %d, seq %d, fragoff %d, fraglen %d, length %d\n", m_Timestamp, m_SequenceNumber, bpr->offset, fragmentLen, length);
 
     // append the JPEG scan data to the RTP buffer
-    memcpy(RtpBuf + headerLen,data + bpr->offset, fragmentLen);
+    memcpy(RtpBuf + headerLen, data + bpr->offset, fragmentLen);
     bpr->offset += fragmentLen;
 
     m_SequenceNumber++;                              // prepare the packet counter for the next packet

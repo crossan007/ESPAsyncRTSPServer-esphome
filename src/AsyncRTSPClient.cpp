@@ -130,13 +130,17 @@ void AsyncRTSPClient::PushRTPBuffer(const char* RTPBuffer, size_t length) {
   udp.beginPacket(this->_tcp_client->remoteIP(),this->_RTPPortInt);
 
   int i = 4;
-  while (i < length-4) udp.write((uint8_t)RTPBuffer[i++]);
+  while (i < length) udp.write((uint8_t)RTPBuffer[i++]);
   udp.endPacket();
   //this->server->writeLog("Wrote UDP Packet to " + String(this->_RTPPortInt));
 }
 
 boolean AsyncRTSPClient::getIsCurrentlyStreaming() {
   return this->_isCurrentlyStreaming;
+}
+
+void AsyncRTSPClient::stopStreaming() {
+  this->_isCurrentlyStreaming = false;
 }
 
 

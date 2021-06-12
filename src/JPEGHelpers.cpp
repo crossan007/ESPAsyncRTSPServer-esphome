@@ -15,6 +15,15 @@
 
 typedef unsigned char* BufPtr;
 
+// most of the JPEG headers contain two bytes after the marker
+// specifying the length of the header (including these length bits)
+// this function moves the supplied pointer PAST the currently
+// pointed-at header using this length description
+// NOTE: not necessarily safe for all header types; use wisely.
+void nextJpegBlock(BufPtr* bytes) {
+    uint32_t len = (*bytes)[0] * 256 + (*bytes)[1];
+    *bytes += len;
+}
 
 // TODO: Replace this function with one that returns a struct containing the details of the 
 // header it just found (including things like length, code, etc) so that
@@ -36,17 +45,16 @@ bool findJPEGheader(BufPtr* start, uint32_t *len, char marker) {
     // FIXME - return false instead
     while(bytes - *start < *len) {
 
-        //printf("looking for framing (0xff) and marker (%x) at %x: %h\n", marker, bytes, *bytes);
         char framing = *bytes++; // better be 0xff since all of the JPEG_ header codes start with 0xff
         if(framing != 0xff) {
-            printf("malformed jpeg, framing=%x %p\n", framing, bytes);
+            //printf("malformed jpeg, framing=%x %p\n", framing, bytes);
             return false;
         }
 
         char typecode = *bytes++;
         if(typecode == marker) {
             char skipped = bytes - *start;
-            printf("found marker 0x%x at %p, skipped %d\n", marker, bytes, skipped);
+            //printf("found marker 0x%x at %p, skipped %d\n", marker, bytes, skipped);
 
             *start = bytes;
 
@@ -62,26 +70,27 @@ bool findJPEGheader(BufPtr* start, uint32_t *len, char marker) {
             {
                 break;   // no data to skip
             }
+            // All of these JPEG headers contain two bytes following the marker
+            // specifying the length of the segment
+            // Use that defined length to skip the whole segment
+            // and advance the bytes pointer to the next segment
             case JPEG_APP_0:   // app0
             case JPEG_DefineQuantizationTable:   // dqt
             case JPEG_DefineHuffmanTable:   // dht
             case JPEG_StartBaselineDCTFrame:   // sof0
             case JPEG_StartOfScan:   // sos
             {
-                // standard format section with 2 bytes for len.  skip that many bytes
-                uint32_t len = (*bytes) * 256 + *(bytes+1);
-                //printf("skipping section 0x%x, %d bytes\n", typecode, len);
-                bytes += len;
+                nextJpegBlock(&bytes);
                 break;
             }
             default:
-                printf("unexpected jpeg typecode 0x%x\n", typecode);
+                //printf("unexpected jpeg typecode 0x%x\n", typecode);
                 break;
             }
         }
     }
 
-    printf("failed to find jpeg marker 0x%x", marker);
+    //printf("failed to find jpeg marker 0x%x", marker);
     return false;
 }
 
@@ -98,23 +107,19 @@ void skipScanBytes(BufPtr* start, uint32_t len) {
             return;
         }
     }
-    printf("could not find end of scan");
+    //printf("could not find end of scan");
 }
-void  nextJpegBlock(BufPtr* bytes) {
-    uint32_t len = (*bytes)[0] * 256 + (*bytes)[1];
-    //printf("going to next jpeg block %d bytes\n", len);
-    *bytes += len;
-}
+
 
 // When JPEG is stored as a file it is wrapped in a container
 // This function fixes up the provided start ptr to point to the
 // actual JPEG stream data and returns the number of bytes skipped
 bool decodeJPEGfile(BufPtr* start, uint32_t* len, BufPtr* qtable0, BufPtr* qtable1) {
     // per https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format
-
-    printf("parsing JPEG data at %p\n",start);
     unsigned char *bytes = *start;
 
+    // move the start pointer to the beginning of the image (marker FFD8); fail if we can't.
+    // Updates len to the number of bytes remaining in the buffer
     if(!findJPEGheader(&bytes, len, JEPG_StartOfImage)) // better at least look like a jpeg file
         return false; // FAILED!
 
@@ -123,72 +128,36 @@ bool decodeJPEGfile(BufPtr* start, uint32_t* len, BufPtr* qtable0, BufPtr* qtabl
     *qtable1 = NULL;
     BufPtr quantstart = *start;
     uint32_t quantlen = *len;
+    // using the start pointer as a base, move the quantstart pointer to where quant tables
+    // begin (marker FFDB)
     if(!findJPEGheader(&quantstart, &quantlen, JPEG_DefineQuantizationTable)) {
-        printf("error can't find quant table 0\n");
+        //printf("error can't find quant table 0\n");
     }
     else {
-         printf("found quant table at %p\n", quantstart);
-
         *qtable0 = quantstart + 3;     // 3 bytes of header skipped
         nextJpegBlock(&quantstart);
         if(!findJPEGheader(&quantstart, &quantlen, JPEG_DefineQuantizationTable)) {
-            printf("error can't find quant table 1\n");
-        }
-        else {
-            // printf("found quant table %x\n", quantstart[2]);
+            //printf("error can't find quant table 1\n");
         }
         *qtable1 = quantstart + 3;
         nextJpegBlock(&quantstart);
     }
 
-    // try creating a temp startOfScan char pointer here.
-    // this makes no sense; it seems like the startOfScan pointer
-    // is reverting to the beinning of the data bloc
-//     JPEG first byte: ff, last two bytes (starting at 0x3ffe9fbb) ffd9
-    // parsing JPEG data at 0x3ffe4374
-    // found marker 0xd8 at 0x3ffe4376, skipped 2
-    // found marker 0xdb at 0x3ffe438a, skipped 22
-    // found marker 0xdb at 0x3ffe438a, skipped 22
-    // found marker 0xda at 0x3ffe45d7, skipped 99
-    // StartofScan at: 0x3ffe4374. Bytes:
-    // 0100ffd8ffe000104a4649460001010100000000
-    // adjusted StartofScan at: 0x3fff434c. Bytes:
-    // 0000000000000000000000000000000000000000
-    // EndofScan at 0x3fff434c.  Bytes: 01. should find EOI
-    // malformed jpeg, framing=0 0x3fff434d
-
-
+    // move the start pointer (which was passed to this function) to the address of the start of
+    // scan data (marker FFDA))
     if(!findJPEGheader(start, len, JPEG_StartOfScan))
         return false; // FAILED!
 
-    printf("StartofScan at: %p. Bytes:\n", *start);
-    for(char i=0;i<20;i++)
-    {
-        printf("%02x",*(*start+i));
-    }
-    printf("\n");
-
-    // Skip the header bytes of the SOS marker FIXME why doesn't this work?
+    // Skip the header bytes of the SOS marker
     uint32_t soslen = (*start)[0] * 256 + (*start)[1];
     *start += soslen;
     *len -= soslen;
 
-    printf("adjusted StartofScan at: %p. Bytes:\n", *start);
-    for(char i=0;i<20;i++)
-    {
-        printf("%02x",*(*start+i));
-    }
-    printf("\n");
-
     // start scanning the data portion of the scan to find the end marker
     BufPtr endmarkerptr = *start;
     uint32_t endlen = *len;
-
-   
-
    
     skipScanBytes(&endmarkerptr, *len);
-    printf("EndofScan at %p.  Bytes: %02x%02x. should find EOI\n", endmarkerptr, *endmarkerptr, *(endmarkerptr+1));
     if(!findJPEGheader(&endmarkerptr, &endlen, JPEG_EndOfImage))
         return false; // FAILED!
 

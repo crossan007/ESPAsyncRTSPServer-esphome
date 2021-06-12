@@ -46,6 +46,7 @@ class AsyncRTSPClient {
     void PushRTPBuffer(const char* RTPBuffer, size_t length);
     String getFriendlyName();
     boolean getIsCurrentlyStreaming();
+    void stopStreaming();
     WiFiUDP udp;
 
   private:
