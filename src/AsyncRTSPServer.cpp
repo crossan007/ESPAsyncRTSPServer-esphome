@@ -13,6 +13,8 @@ AsyncRTSPServer::AsyncRTSPServer(uint16_t port, dimensions dim):
   _dim(dim)
    {
 
+  this->client = nullptr;
+
   this->RTPBuffer = new char[2048]; // Note: we assume single threaded, this large buf we keep off of the tiny stack
 
   _server.onClient([this](void *s, AsyncClient* c){
@@ -39,7 +41,7 @@ void AsyncRTSPServer::writeLog(String log) {
 
 
 boolean AsyncRTSPServer::hasClients(){
-  return this->client != NULL && this->client->getIsCurrentlyStreaming();
+  return this->client != nullptr && this->client->getIsCurrentlyStreaming();
 }
 
 void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
@@ -49,7 +51,7 @@ void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
   uint32_t units = 90000; // Hz per RFC 2435
   this->m_Timestamp += (units * -(millis() - this->start_Timestamp)) / 1000;
 
-  if (this->client != NULL && this->client->getIsCurrentlyStreaming()) {
+  if (this->hasClients()) {
     // TODO: When we support multiple clients, this will end up being a nested loop
     // where the buffer is prepared once, and sent out to each client individually
     // for now, just do one.
