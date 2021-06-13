@@ -103,7 +103,9 @@ class AsyncRTSPServer {
       unsigned const char * quant1tbl);
     u_short m_SequenceNumber;
     uint32_t m_Timestamp;
-    uint32_t start_Timestamp;
+    uint32_t prevMsec;
+    uint32_t curMsec;
+    uint32_t deltams;
     dimensions _dim;
    
     

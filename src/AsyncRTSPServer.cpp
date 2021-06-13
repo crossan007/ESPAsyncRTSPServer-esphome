@@ -14,6 +14,8 @@ AsyncRTSPServer::AsyncRTSPServer(uint16_t port, dimensions dim):
    {
 
   this->client = nullptr;
+  this->prevMsec = millis();
+  this->curMsec = this->prevMsec;
 
   this->RTPBuffer = new char[2048]; // Note: we assume single threaded, this large buf we keep off of the tiny stack
 
@@ -28,7 +30,6 @@ AsyncRTSPServer::AsyncRTSPServer(uint16_t port, dimensions dim):
 
   this->loggerCallback = NULL;
 
-  this->start_Timestamp = millis();
 }
 
 void AsyncRTSPServer::writeLog(String log) {
@@ -48,8 +49,10 @@ void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
 
 
 
-  uint32_t units = 90000; // Hz per RFC 2435
-  this->m_Timestamp += (units * -(millis() - this->start_Timestamp)) / 1000;
+  #define units 90000 // Hz per RFC 2435
+  this->curMsec = millis();
+  this->deltams = (this->curMsec >= this->prevMsec) ? this->curMsec - this->prevMsec : 100;
+  this->m_Timestamp += (units * deltams / 1000);    
 
   if (this->hasClients()) {
     // TODO: When we support multiple clients, this will end up being a nested loop
@@ -78,6 +81,7 @@ void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
         quant0tbl,
         quant1tbl);
       this->client->PushRTPBuffer(this->RTPBuffer, bpr.bufferSize);
+      yield(); //TODO: Not sure if this is necessary? 
     } while(!bpr.isLastFragment);
     this->loggerCallback("RTSP server pushed camera frame");   
   }
