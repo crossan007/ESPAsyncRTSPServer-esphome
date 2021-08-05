@@ -49,6 +49,7 @@ AsyncRTSPClient::AsyncRTSPClient(AsyncClient* c, AsyncRTSPServer * server)
 
     if (endS == _temp.length()-4 ) {
       AsyncRTSPRequest* req = new AsyncRTSPRequest(_temp);
+      this->server->writeLog("Request is: " + req->toString());
       AsyncRTSPResponse* resp = new AsyncRTSPResponse(c, req);
       this->handleRTSPRequest(req, resp);
       _temp="";
@@ -68,6 +69,7 @@ void AsyncRTSPClient::handleRTSPRequest(AsyncRTSPRequest* req, AsyncRTSPResponse
     
   }
   else if(req->Method=="DESCRIBE") {
+    this->server->writeLog("Describe1: " + RTSPMediaLevelAttributes::toString());
     res->Status = 200;
     res->Body = RTSPMediaLevelAttributes::toString();
     res->Send();
@@ -145,6 +147,7 @@ void AsyncRTSPClient::stopStreaming() {
 
 
 AsyncRTSPRequest::AsyncRTSPRequest(String rawRequest) {
+  this->server->writeLog("RawRequest2: " + rawRequest);
   this->rawRequest = rawRequest;
   int methodEnd = rawRequest.indexOf(" ");
   this->Method = rawRequest.substring(0,methodEnd);
