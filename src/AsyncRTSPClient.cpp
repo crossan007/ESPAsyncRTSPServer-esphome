@@ -68,8 +68,8 @@ void AsyncRTSPClient::handleRTSPRequest(AsyncRTSPRequest* req, AsyncRTSPResponse
     
   }
   else if(req->Method=="DESCRIBE") {
-    this->server->writeLog("Describe1: " + RTSPMediaLevelAttributes::toString());
     res->Status = 200;
+    //this->server->writeLog(RTSPMediaLevelAttributes::toString());
     res->Body = RTSPMediaLevelAttributes::toString();
     res->Send();
   }
@@ -128,12 +128,19 @@ String AsyncRTSPClient::getFriendlyName() {
 }
 
 void AsyncRTSPClient::PushRTPBuffer(const char* RTPBuffer, size_t length) {
+  if (this->_tcp_client->canSend()) {
   udp.beginPacket(this->_tcp_client->remoteIP(),this->_RTPPortInt);
 
   int i = 4;
   while (i < length) udp.write((uint8_t)RTPBuffer[i++]);
   udp.endPacket();
   //this->server->writeLog("Wrote UDP Packet to " + String(this->_RTPPortInt));
+  }else{
+    this->server->writeLog("ERROR: Can't send to Client, Con closed");
+    this->server->writeLog("Ending Stream");
+    this->_isCurrentlyStreaming = false;
+  }
+  
 }
 
 boolean AsyncRTSPClient::getIsCurrentlyStreaming() {
@@ -194,9 +201,10 @@ void AsyncRTSPResponse::Send(){
   else {
     sendBody += "\r\n";
   }
+  if (this->Body.length() > 0 || this->Headers.length() > 0) {
   sendBody += "\r\n";
+  }
   this->_tcpClient->write(sendBody.c_str());
-  this->_tcpClient->send();
 }
 
 String AsyncRTSPResponse::ContentLengthHeader() {
