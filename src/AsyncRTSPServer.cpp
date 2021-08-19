@@ -14,8 +14,8 @@ AsyncRTSPServer::AsyncRTSPServer(uint16_t port, dimensions dim):
    {
 
   this->client = nullptr;
-  this->prevMsec = millis();
-  this->curMsec = this->prevMsec;
+  this->curMsec = 0;
+  this->m_SequenceNumber = 0;
 
   this->RTPBuffer = new char[2048]; // Note: we assume single threaded, this large buf we keep off of the tiny stack
 
@@ -50,9 +50,9 @@ void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
 
 
   #define units 90000 // Hz per RFC 2435
-  this->curMsec = millis();
-  this->deltams = (this->curMsec >= this->prevMsec) ? this->curMsec - this->prevMsec : 100;
-  this->m_Timestamp += (units * deltams / 1000);    
+  this->curMsec = this->curMsec + units;
+
+  this->writeLog("CurrMilli: " + String(this->curMsec));
 
   if (this->hasClients()) {
     // TODO: When we support multiple clients, this will end up being a nested loop
