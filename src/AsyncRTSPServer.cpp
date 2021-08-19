@@ -51,6 +51,7 @@ void AsyncRTSPServer::pushFrame(uint8_t* data, size_t length) {
 
   #define units 90000 // Hz per RFC 2435
   this->curMsec = this->curMsec + units;
+  this->m_Timestamp = this->curMsec;
 
   this->writeLog("CurrMilli: " + String(this->curMsec));
 
