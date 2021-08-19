@@ -214,11 +214,16 @@ char * AsyncRTSPResponse::DateHeader() {
 
 String RTSPMediaLevelAttributes::toString() {
   return "v=0\r\n"
-        "o=- d 1 IN IP4 s\r\n"
-        "s=\r\n"
+        "o=- " + String(millis()) + " " + String(millis()) + " IN IP4 127.0.0.1\r\n"
+        "s=TEST\r\n"
         "t=0 0\r\n"
-        "m=video 0 RTP/AVP 26\r\n"
         // "a=x-dimensions: 640,480\r\n"
+        "m=video 0 RTP/AVP 26\r\n"
+        //"m=video 0 RTP/AVP 96\r\n"
+        "a=rtpmap:26 JPEG/90000\r\n"
+        //"a=rtpmap:96 JPEG/90000\r\n"
+        "a=decode_buf=300\r\n"
+        "a=framerate:10\r\n"
         "c=IN IP4 0.0.0.0";
 }
 
