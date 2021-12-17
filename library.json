@@ -12,7 +12,7 @@
     "type": "git",
     "url": "https://github.com/crossan007/ESPAsyncRTSPServer-esphome.git"
   },
-  "version": "0.0.1",
+  "version": "0.0.2",
   "license": "MIT",
   "frameworks": "arduino",
   "platforms": ["espressif32"],

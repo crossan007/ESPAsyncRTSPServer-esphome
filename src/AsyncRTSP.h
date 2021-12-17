@@ -15,6 +15,8 @@
 #include <WiFiUdp.h>
 #include <stdio.h>
 
+#define RTP_TIMESTAMP_HZ 90000 // Hz per RFC 2435
+
 typedef std::function<void (void *)> RTSPConnectHandler;
 typedef std::function<void (String ) > LogFunction;
 
@@ -34,6 +36,13 @@ struct RTPBuffferPreparationResult {
   int offset;
   int bufferSize;
   bool isLastFragment;
+};
+
+struct DecodedJPEGFile {
+  unsigned char *quant0tbl;
+  unsigned char *quant1tbl;
+  uint8_t *data;
+  size_t length;
 };
 
 // class declarations
@@ -79,12 +88,19 @@ class AsyncRTSPServer {
     int GetRTSPServerPort();
     int GetRTCPServerPort();
     boolean hasClients();
+    /**
+    * Worker method to send RTP frames
+    *   
+    * */
+    void tick();
 
     //void streamImage();
   protected:
     AsyncServer _server;
     void* that;
     void* thatlog;
+    DecodedJPEGFile currentFrame;
+    RTPBuffferPreparationResult bpr;
     
 
   private:
@@ -102,7 +118,10 @@ class AsyncRTSPServer {
       unsigned const char * quant0tbl, 
       unsigned const char * quant1tbl);
     u_short m_SequenceNumber;
-    uint32_t m_Timestamp;
+    /**
+     * Timestamp; measured as cycle count on a 90,000Hz per RFC 2435
+     * */
+    uint32_t m_Timestamp; 
     uint32_t prevMsec;
     uint32_t curMsec;
     uint32_t deltams;
