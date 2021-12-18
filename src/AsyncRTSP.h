@@ -67,7 +67,6 @@ class AsyncRTSPClient {
     int _RTPPortInt;
     String _RTPPort;
     String _RTCPPort;
-
     uint RtspSessionID;
   
 };
@@ -101,7 +100,7 @@ class AsyncRTSPServer {
     void* thatlog;
     DecodedJPEGFile currentFrame;
     RTPBuffferPreparationResult bpr;
-    
+    SemaphoreHandle_t semaphore_;
 
   private:
     AsyncRTSPClient* client;

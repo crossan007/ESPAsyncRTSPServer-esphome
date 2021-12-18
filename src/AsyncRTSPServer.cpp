@@ -53,39 +53,48 @@ boolean AsyncRTSPServer::hasClients()
 
 void AsyncRTSPServer::pushFrame(uint8_t *data, size_t length)
 {
+  // only decode the JPEG if we actually have clients connected.
+  if (!this->hasClients())
+  {
+    return;
+  }
 
+  // Make sure we've finised streaming the last frame to clients before accepting a new
+  // frame to stream
+  if(this->currentFrame.data != nullptr){
+    printf("Unable to accept new frame; haven't finished streaming the last one yet. %u\n", millis());
+    return;
+  }
 
+  printf("Pushing frame %u\n", millis());
   this->curMsec = millis();
   this->deltams = (this->curMsec >= this->prevMsec) ? this->curMsec - this->prevMsec : 100;
-  this->m_Timestamp += RTP_TIMESTAMP_HZ * (deltams / 1000);
+  this->prevMsec = this->curMsec;
+  printf("Delta MS %u\n", this->deltams);
+  printf("CHANGED TIMESTAMP FROM %u\n", this->m_Timestamp);
+  this->m_Timestamp += (RTP_TIMESTAMP_HZ * deltams) / 1000; 
+  printf("CHANGED TIMESTAMP TO %u\n" , this->m_Timestamp);
 
-  if (this->hasClients())
+
+  if (!decodeJPEGfile(&data, &length, &this->currentFrame.quant0tbl, &this->currentFrame.quant1tbl))
   {
-    // TODO: When we support multiple clients, this will end up being a nested loop
-    // where the buffer is prepared once, and sent out to each client individually
-    // for now, just do one.
-
-    if (!decodeJPEGfile(&data, &length, &this->currentFrame.quant0tbl, &this->currentFrame.quant1tbl))
-    {
-      this->loggerCallback("Cannot decode JPEG Data");
-      return;
-    }
-    // at this point, "data" points to the addres of the scan frames
-    // and quant0tbl and quant1tbl are populated with the values
-
-    this->currentFrame.data = data;
-    this->currentFrame.length = length;
+    this->loggerCallback("Cannot decode JPEG Data");
+    return;
   }
+  // at this point, "data" points to the addres of the scan frames
+  // and quant0tbl and quant1tbl are populated with the values
+
+  this->currentFrame.data = data;
+  this->currentFrame.length = length;
+  
 }
 
 void AsyncRTSPServer::tick()
 {
-
- if (this->currentFrame.length  == 0 || this->currentFrame.data == nullptr ) {
-   //this->loggerCallback("Skipping RTP PAcket prep");
-   return;
- }
-
+  if (this->currentFrame.length  == 0 || this->currentFrame.data == nullptr ) {
+    //this->loggerCallback("Skipping RTP PAcket prep");
+    return;
+  }
 
   if (this->hasClients() ) {
     //this->loggerCallback("prepping RTSP Packet");
@@ -100,7 +109,14 @@ void AsyncRTSPServer::tick()
     this->client->PushRTPBuffer(this->RTPBuffer, this->bpr.bufferSize);
     if (this->bpr.isLastFragment) {
       this->bpr = {0, 0, false};
-      this->loggerCallback("RTSP server pushed last camera "+ this->m_Timestamp);
+      this->loggerCallback("RTSP server pushed last camera ");
+      // We've streamed the last RTSP frame from the image buffer; 
+      this->currentFrame = {
+        nullptr,
+        nullptr,
+        nullptr,
+        0
+      };
     }
     
   }
