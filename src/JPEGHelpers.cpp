@@ -3,17 +3,7 @@
 // https://www.videotechnology.com/jpeg/j1.html
 
 #include "Arduino.h"
-
-// Image header bytes
-#define JEPG_StartOfImage 0xd8
-#define JPEG_APP_0 0xe0
-#define JPEG_DefineQuantizationTable 0xdb
-#define JPEG_DefineHuffmanTable 0xc4
-#define JPEG_StartOfScan 0xda
-#define JPEG_StartBaselineDCTFrame 0xc0
-#define JPEG_EndOfImage 0xd9
-
-typedef unsigned char* BufPtr;
+#include "JPEGHelpers.h"
 
 // most of the JPEG headers contain two bytes after the marker
 // specifying the length of the header (including these length bits)
@@ -111,10 +101,16 @@ void skipScanBytes(BufPtr* start, uint32_t len) {
 }
 
 
-// When JPEG is stored as a file it is wrapped in a container
-// This function fixes up the provided start ptr to point to the
-// actual JPEG stream data and returns the number of bytes skipped
-bool decodeJPEGfile(BufPtr* start, uint32_t* len, BufPtr* qtable0, BufPtr* qtable1) {
+/**
+ * Decode the incoming JPEG file bytes by locating the various portions
+ * of the file (quantization tables, various headers, and scan bytes)
+ * 
+ * Update the strcut at the location of the provided currentFrame pointer
+ * to include a reference to the original shared_ptr from the DMA transfer of the camera frame
+ * as well as the memory addresses of the two quantization tables and the JPEG scan data.
+ * 
+ */ 
+bool decodeJPEGfile(BufPtr* start, uint32_t* len, DecodedJPEGFrame* currentFrame) {
     // per https://en.wikipedia.org/wiki/JPEG_File_Interchange_Format
     unsigned char *bytes = *start;
 
@@ -124,8 +120,8 @@ bool decodeJPEGfile(BufPtr* start, uint32_t* len, BufPtr* qtable0, BufPtr* qtabl
         return false; // FAILED!
 
     // Look for quant tables if they are present
-    *qtable0 = NULL;
-    *qtable1 = NULL;
+    currentFrame->quant0tbl = nullptr;
+    currentFrame->quant1tbl = nullptr;
     BufPtr quantstart = *start;
     uint32_t quantlen = *len;
     // using the start pointer as a base, move the quantstart pointer to where quant tables
@@ -134,12 +130,12 @@ bool decodeJPEGfile(BufPtr* start, uint32_t* len, BufPtr* qtable0, BufPtr* qtabl
         //printf("error can't find quant table 0\n");
     }
     else {
-        *qtable0 = quantstart + 3;     // 3 bytes of header skipped
+        currentFrame->quant0tbl = quantstart + 3;
         nextJpegBlock(&quantstart);
         if(!findJPEGheader(&quantstart, &quantlen, JPEG_DefineQuantizationTable)) {
             //printf("error can't find quant table 1\n");
         }
-        *qtable1 = quantstart + 3;
+        currentFrame->quant1tbl = quantstart + 3;
         nextJpegBlock(&quantstart);
     }
 
@@ -164,6 +160,9 @@ bool decodeJPEGfile(BufPtr* start, uint32_t* len, BufPtr* qtable0, BufPtr* qtabl
     // endlen must now be the # of bytes between the start of our scan and
     // the end marker, tell the caller to ignore bytes afterwards
     *len = endmarkerptr - *start;
+
+    currentFrame->scanDataLength = *len;
+    currentFrame->scanData = *start;
 
     return true;
 }

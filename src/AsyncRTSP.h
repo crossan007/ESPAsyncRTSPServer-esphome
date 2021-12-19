@@ -14,6 +14,8 @@
 #include <AsyncTCP.h>
 #include <WiFiUdp.h>
 #include <stdio.h>
+#include "JPEGHelpers.h"
+#include <memory>
 
 #define RTP_TIMESTAMP_HZ 90000 // Hz per RFC 2435
 
@@ -36,13 +38,6 @@ struct RTPBuffferPreparationResult {
   int offset;
   int bufferSize;
   bool isLastFragment;
-};
-
-struct DecodedJPEGFile {
-  unsigned char *quant0tbl;
-  unsigned char *quant1tbl;
-  uint8_t *data;
-  size_t length;
 };
 
 // class declarations
@@ -81,7 +76,8 @@ class AsyncRTSPServer {
     void begin();
     void end();
     void onClient(RTSPConnectHandler callback, void* arg);
-    void pushFrame(uint8_t* data, size_t length);
+    void pushFrame(uint8_t* data, size_t length, std::shared_ptr<void> image);
+    void onFrameFinished(std::function<void ()> callback, void* arg);
     void setLogFunction(LogFunction logger, void* arg);
     void writeLog(String log);
     int GetRTSPServerPort();
@@ -98,14 +94,14 @@ class AsyncRTSPServer {
     AsyncServer _server;
     void* that;
     void* thatlog;
-    DecodedJPEGFile currentFrame;
+    DecodedJPEGFrame currentFrame;
     RTPBuffferPreparationResult bpr;
-    SemaphoreHandle_t semaphore_;
 
   private:
     AsyncRTSPClient* client;
     RTSPConnectHandler connectCallback;
     LogFunction loggerCallback;
+    std::function<void ()> frameFinishedCallback;
     int RtpServerPort;
     int RtcpServerPort;
     char* RTPBuffer; // Note: we assume single threaded, this large buf we keep off of the tiny stack
@@ -125,6 +121,7 @@ class AsyncRTSPServer {
     uint32_t curMsec;
     uint32_t deltams;
     dimensions _dim;
+    std::shared_ptr<void> currentFrameSharedPointer;
    
     
 
