@@ -81,7 +81,7 @@ void AsyncRTSPServer::pushFrame(uint8_t *data, size_t length, std::shared_ptr<vo
 
 void AsyncRTSPServer::tick()
 {
-  if (this->currentFrame.scanDataLength  == 0 || this->currentFrame.scanData == nullptr ) {
+  if (this->currentFrame.scanDataLength  == 0 ) {
     //this->loggerCallback("Skipping RTP PAcket prep");
     return;
   }
@@ -103,12 +103,14 @@ void AsyncRTSPServer::tick()
       this->frameFinishedCallback();
       // free the buffer
       this->currentFrameSharedPointer = nullptr;
+      this->currentFrame.scanDataLength  = 0; 
     }
     
   }
   else {
     // free the buffer
     this->currentFrameSharedPointer = nullptr;
+    this->currentFrame.scanDataLength  = 0;
   }
 }
 
