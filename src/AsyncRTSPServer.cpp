@@ -35,6 +35,11 @@ AsyncRTSPServer::AsyncRTSPServer(uint16_t port, dimensions dim) : _server(port),
     0
   };
   this->bpr = {0, 0, false};
+  this->frameCount = 0;
+  this->sendTime = 0;
+  this->prepTime = 0;
+  this->lastFrameMillis = 0;
+
 }
 
 void AsyncRTSPServer::writeLog(String log)
@@ -61,14 +66,14 @@ void AsyncRTSPServer::pushFrame(uint8_t *data, size_t length, std::shared_ptr<vo
 
   this->currentFrameSharedPointer = image;
 
-  printf("Pushing frame %u\n", millis());
+  //printf("Pushing frame %u\n", millis());
   this->curMsec = millis();
   this->deltams = (this->curMsec >= this->prevMsec) ? this->curMsec - this->prevMsec : 100;
   this->prevMsec = this->curMsec;
-  printf("Delta MS %u\n", this->deltams);
-  printf("CHANGED TIMESTAMP FROM %u\n", this->m_Timestamp);
+  //printf("Delta MS %u\n", this->deltams);
+  //printf("CHANGED TIMESTAMP FROM %u\n", this->m_Timestamp);
   this->m_Timestamp += (RTP_TIMESTAMP_HZ * deltams) / 1000; 
-  printf("CHANGED TIMESTAMP TO %u\n" , this->m_Timestamp);
+  //printf("CHANGED TIMESTAMP TO %u\n" , this->m_Timestamp);
 
 
   if (!decodeJPEGfile(&data, &length, &this->currentFrame))
@@ -81,36 +86,52 @@ void AsyncRTSPServer::pushFrame(uint8_t *data, size_t length, std::shared_ptr<vo
 
 void AsyncRTSPServer::tick()
 {
-  if (this->currentFrame.scanDataLength  == 0 ) {
-    //this->loggerCallback("Skipping RTP PAcket prep");
-    return;
-  }
+  // send up to n packets per cpu tick
+  for (int i = 0; i < 10; i++) {
+    if (this->currentFrame.scanDataLength  == 0 ) {
+      //this->loggerCallback("Skipping RTP PAcket prep");
+      return;
+    }
 
-  if (this->hasClients() ) {
-    //this->loggerCallback("prepping RTSP Packet");
-    PrepareRTPBufferForClients(
-        this->RTPBuffer,
-        this->currentFrame.scanData,
-        this->currentFrame.scanDataLength,
-        &this->bpr,
-        this->currentFrame.quant0tbl,
-        this->currentFrame.quant1tbl);
-    //this->loggerCallback("sending RTSP Packet");
-    this->client->PushRTPBuffer(this->RTPBuffer, this->bpr.bufferSize);
-    if (this->bpr.isLastFragment) {
-      this->bpr = {0, 0, false};
-      this->loggerCallback("RTSP server pushed last camera ");
-      this->frameFinishedCallback();
+    if (this->hasClients() ) {
+      uint32_t s = millis();
+      PrepareRTPBufferForClients(
+          this->RTPBuffer,
+          this->currentFrame.scanData,
+          this->currentFrame.scanDataLength,
+          &this->bpr,
+          this->currentFrame.quant0tbl,
+          this->currentFrame.quant1tbl);
+      this->prepTime += millis() - s;
+      s = millis();
+      this->client->PushRTPBuffer(this->RTPBuffer, this->bpr.bufferSize);
+      this->sendTime += millis() - s;
+      if (this->bpr.isLastFragment) {
+        this->frameCount += 1;
+        
+        this->bpr = {0, 0, false};
+        char logentry[200];
+        sprintf(logentry, 
+          "RTSP server pushed frame %d\n  FPS: %f\n  Avg Prep Time: %f\n  Avg TXTime: %f", 
+          this->frameCount, 
+          (1.0/(((float)millis()-(float)this->lastFrameMillis)/1000)),
+          ((float)this->prepTime/(float)this->frameCount), 
+          ((float)this->sendTime/(float)this->frameCount)
+        );
+        this->lastFrameMillis = millis();
+        this->loggerCallback(logentry);
+        this->frameFinishedCallback();
+        // free the buffer
+        this->currentFrameSharedPointer = nullptr;
+        this->currentFrame.scanDataLength  = 0;
+      }
+      
+    }
+    else {
       // free the buffer
       this->currentFrameSharedPointer = nullptr;
-      this->currentFrame.scanDataLength  = 0; 
+      this->currentFrame.scanDataLength  = 0;
     }
-    
-  }
-  else {
-    // free the buffer
-    this->currentFrameSharedPointer = nullptr;
-    this->currentFrame.scanDataLength  = 0;
   }
 }
 
@@ -153,7 +174,15 @@ void AsyncRTSPServer::PrepareRTPBufferForClients(
 #define KRtpHeaderSize 12 // size of the RTP header
 #define KJpegHeaderSize 8 // size of the special JPEG payload header
 
-#define MAX_FRAGMENT_SIZE 1100 // FIXME, pick more carefully
+/**
+ * FIXME pick more carefully;
+ *  this represents the number of "data bytes" to be included in the packet;
+ *
+ * However, the total size of the final packet (with headers and payload headers and data)
+ * must be smaller than the lowest MTU of all network segments between the server
+ * and the client
+ */
+#define MAX_FRAGMENT_SIZE 1300 
   int fragmentLen = MAX_FRAGMENT_SIZE;
   if (fragmentLen + bpr->offset >= length)
   {                                         // Shrink last fragment if needed

@@ -122,6 +122,10 @@ class AsyncRTSPServer {
     uint32_t deltams;
     dimensions _dim;
     std::shared_ptr<void> currentFrameSharedPointer;
+    uint32_t prepTime;
+    uint32_t sendTime;
+    int frameCount;
+    uint32_t lastFrameMillis;
    
     
 

@@ -63,7 +63,7 @@ void AsyncRTSPClient::handleRTSPRequest(AsyncRTSPRequest* req, AsyncRTSPResponse
 
   if(req->Method =="OPTIONS") {
     res->Status = 200;
-    res->Headers = "Public: DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE\r\n";
+    res->Headers = "Public: OPTIONS, DESCRIBE, SETUP, TEARDOWN, PLAY, PAUSE\r\n";
     res->Send();
     
   }
@@ -99,7 +99,7 @@ void AsyncRTSPClient::handleRTSPRequest(AsyncRTSPRequest* req, AsyncRTSPResponse
 
 
 
-    res->Headers = String(transportResponse) + "Session: " + String(sess);
+    res->Headers = String(transportResponse) + "Session: " + String(sess)+"\r\n";
     res->Send();
   }
   else if(req->Method=="PLAY") {
@@ -129,8 +129,8 @@ String AsyncRTSPClient::getFriendlyName() {
 void AsyncRTSPClient::PushRTPBuffer(const char* RTPBuffer, size_t length) {
   udp.beginPacket(this->_tcp_client->remoteIP(),this->_RTPPortInt);
 
-  int i = 4;
-  while (i < length) udp.write((uint8_t)RTPBuffer[i++]);
+  const uint8_t* udpBuffer = (uint8_t*)(RTPBuffer+4);
+  udp.write(udpBuffer,length-4);
   udp.endPacket();
   //this->server->writeLog("Wrote UDP Packet to " + String(this->_RTPPortInt));
 }
@@ -169,7 +169,7 @@ String AsyncRTSPRequest::GetHeaderValue(String headerName) {
   int headerLineStart = this->Headers.indexOf(headerName);
   int headerNameEnd = this->Headers.indexOf(":",headerLineStart);
   int headerLineEnd = this->Headers.indexOf("\r\n",headerLineStart);
-  return this->Headers.substring(headerNameEnd+1,headerLineEnd);
+  return this->Headers.substring(headerNameEnd+2,headerLineEnd); // TODO, make sure we ignore whitespace after the colon
 }
 
 AsyncRTSPResponse::AsyncRTSPResponse(AsyncClient* c, AsyncRTSPRequest* r)
@@ -190,9 +190,7 @@ void AsyncRTSPResponse::Send(){
     sendBody += "\r\n";
     sendBody += this->Body;
   }
-  else {
-    sendBody += "\r\n";
-  }
+  // TODO make sure we always end this packet with a fully blank line
   sendBody += "\r\n";
   this->_tcpClient->write(sendBody.c_str());
   this->_tcpClient->send();
