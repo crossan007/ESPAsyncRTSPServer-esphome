@@ -39,6 +39,7 @@ AsyncRTSPServer::AsyncRTSPServer(uint16_t port, dimensions dim) : _server(port),
   this->sendTime = 0;
   this->prepTime = 0;
   this->lastFrameMillis = 0;
+  this->logentry = new char[200];
 
 }
 
@@ -110,16 +111,7 @@ void AsyncRTSPServer::tick()
         this->frameCount += 1;
         
         this->bpr = {0, 0, false};
-        char logentry[200];
-        sprintf(logentry, 
-          "RTSP server pushed frame %d\n  FPS: %f\n  Avg Prep Time: %f\n  Avg TXTime: %f", 
-          this->frameCount, 
-          (1.0/(((float)millis()-(float)this->lastFrameMillis)/1000)),
-          ((float)this->prepTime/(float)this->frameCount), 
-          ((float)this->sendTime/(float)this->frameCount)
-        );
         this->lastFrameMillis = millis();
-        this->loggerCallback(logentry);
         this->frameFinishedCallback();
         // free the buffer
         this->currentFrameSharedPointer = nullptr;
@@ -133,6 +125,18 @@ void AsyncRTSPServer::tick()
       this->currentFrame.scanDataLength  = 0;
     }
   }
+
+    if (millis()%1000 == 0) {
+      // write stats once a second
+      sprintf(this->logentry, 
+        "RTSP server pushed frame %d\n  FPS: %f\n  Avg Prep Time: %f\n  Avg TXTime: %f", 
+        this->frameCount, 
+        (1.0/(((float)millis()-(float)this->lastFrameMillis)/1000)),
+        ((float)this->prepTime/(float)this->frameCount), 
+        ((float)this->sendTime/(float)this->frameCount)
+      );
+      this->loggerCallback(logentry);
+    }
 }
 
 void AsyncRTSPServer::onClient(RTSPConnectHandler callback, void *that)

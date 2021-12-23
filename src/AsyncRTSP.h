@@ -126,6 +126,7 @@ class AsyncRTSPServer {
     uint32_t sendTime;
     int frameCount;
     uint32_t lastFrameMillis;
+    char* logentry;
    
     
 
