@@ -209,13 +209,14 @@ char * AsyncRTSPResponse::DateHeader() {
   return buf;
 }
 
+// https://www.ietf.org/rfc/rfc4566.txt page 21/22
 String RTSPMediaLevelAttributes::toString() {
   return "v=0\r\n"
-        "o=- d 1 IN IP4 s\r\n"
-        "s=\r\n"
-        "t=0 0\r\n"
+        "o=d 1  1 IN IP4 0.0.0.0\r\n"
+        "s=ESPHome RTSP Stream\r\n"
+        // If the stop time is 0 then the session is unbounded. If the start time is also zero then the session is considered permanent. Unbounded and permanent sessions are discouraged but not prohibited.
+        "t=0 0\r\n" 
         "m=video 0 RTP/AVP 26\r\n"
-        // "a=x-dimensions: 640,480\r\n"
-        "c=IN IP4 0.0.0.0";
+        "c=IN IP4 0.0.0.0\r\n";
 }
 
