@@ -88,7 +88,7 @@ void AsyncRTSPServer::pushFrame(uint8_t *data, size_t length, std::shared_ptr<vo
 void AsyncRTSPServer::tick()
 {
   // send up to n packets per cpu tick
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 5; i++) {
     if (this->currentFrame.scanDataLength  == 0 ) {
       //this->loggerCallback("Skipping RTP PAcket prep");
       return;
