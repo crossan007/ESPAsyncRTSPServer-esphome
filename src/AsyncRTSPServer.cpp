@@ -65,8 +65,15 @@ void AsyncRTSPServer::pushFrame(uint8_t *data, size_t length, std::shared_ptr<vo
     return;
   }
 
-  this->currentFrameSharedPointer = image;
+  if (!decodeJPEGfile(&data, &length, &this->currentFrame))
+  {
+    this->loggerCallback("Cannot decode JPEG Data; freeing pointer");
+    this->currentFrameSharedPointer = nullptr;
+    this->currentFrame.scanDataLength  = 0;
+    return;
+  }
 
+  this->currentFrameSharedPointer = image;
   //printf("Pushing frame %u\n", millis());
   this->curMsec = millis();
   this->deltams = (this->curMsec >= this->prevMsec) ? this->curMsec - this->prevMsec : 100;
@@ -75,13 +82,6 @@ void AsyncRTSPServer::pushFrame(uint8_t *data, size_t length, std::shared_ptr<vo
   //printf("CHANGED TIMESTAMP FROM %u\n", this->m_Timestamp);
   this->m_Timestamp += (RTP_TIMESTAMP_HZ * deltams) / 1000; 
   //printf("CHANGED TIMESTAMP TO %u\n" , this->m_Timestamp);
-
-
-  if (!decodeJPEGfile(&data, &length, &this->currentFrame))
-  {
-    this->loggerCallback("Cannot decode JPEG Data");
-    return;
-  }
   
 }
 
