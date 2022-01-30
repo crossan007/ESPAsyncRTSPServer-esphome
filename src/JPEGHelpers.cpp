@@ -2,7 +2,7 @@
 // https://www.fileformat.info/format/jpeg/egff.htm
 // https://www.videotechnology.com/jpeg/j1.html
 
-#include "Arduino.h"
+#include <Arduino.h>
 #include "JPEGHelpers.h"
 
 // most of the JPEG headers contain two bytes after the marker

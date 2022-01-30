@@ -1,5 +1,5 @@
 #pragma once
-#include "Arduino.h"
+#include <Arduino.h>
 // Image header bytes
 #define JEPG_StartOfImage 0xd8
 #define JPEG_APP_0 0xe0
